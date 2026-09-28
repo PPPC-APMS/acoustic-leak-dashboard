@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPPC ACOUSTIC LEAK DASHBOARD 2026</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/dataTables.bootstrap5.min.css">
+<style>
+:root {
+  --bg: #0a0e1a;
+  --card: #111827;
+  --border: #1e2d45;
+  --blue: #00b4ff;
+  --green: #00e676;
+  --red: #ff3d57;
+  --orange: #ff9100;
+  --purple: #c77dff;
+  --teal: #00e5ff;
+  --yellow: #ffe57f;
+  --text: #e0e6ef;
+  --muted: #6b7a99;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; }
+.dash-header { background: linear-gradient(135deg, #0a0e1a 0%, #0d1b35 100%); border-bottom: 1px solid var(--border); padding: 18px 24px; display: flex; align-items: center; gap: 16px; }
+.dash-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--teal); letter-spacing: 1px; }
+.dash-header .badge-live { background: var(--green); color: #000; font-size: 0.65rem; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
+.content { padding: 20px 24px; }
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
+.energy-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
+@media(max-width:1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media(max-width:700px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .energy-grid { grid-template-columns: 1fr; } }
+.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.kpi-card .klbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.kpi-card .kval { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.kval.blue { color: var(--blue); }
+.kval.green { color: var(--green); }
+.kval.red { color: var(--red); }
+.kval.teal { color: var(--teal); }
+.kval.white { color: #fff; }
+/* Energy card */
+.energy-kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.ehead { padding: 10px 14px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+.ehead .unit { font-size: 0.65rem; font-weight: 400; opacity: 0.8; }
+.erow { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); }
+.ecell { padding: 10px 12px; border-right: 1px solid var(--border); }
+.ecell:last-child { border-right: none; }
+.ecell .elbl { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.ecell .eval { font-size: 1.05rem; font-weight: 700; }
+.ecell.total .eval { color: #fff; }
+.ecell.saving .eval { color: var(--teal); }
+.ecell.remain .eval { color: var(--red); }
+/* Charts */
+.section-title { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media(max-width:900px) { .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; } }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.chart-card h6 { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+canvas { max-height: 280px; }
+/* Datatable */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.filter-bar select { background: #1a2540; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 10px; font-size: 0.8rem; }
+.filter-bar button { background: #1e2d45; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer; }
+.filter-bar button:hover { background: var(--blue); color: #000; }
+#recordCount { background: var(--blue); color: #000; font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+#exportBtn { background: var(--green); color: #000; border: none; border-radius: 6px; padding: 5px 14px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+table.dataTable { color: var(--text) !important; background: var(--card) !important; font-size: 0.8rem; }
+table.dataTable thead th { background: #0d1628 !important; color: var(--blue) !important; border-color: var(--border) !important; white-space: nowrap; }
+table.dataTable tbody tr { background: var(--card) !important; }
+table.dataTable tbody tr:hover { background: #16213a !important; }
+table.dataTable tbody td { border-color: var(--border) !important; vertical-align: middle; }
+.dataTables_wrapper .dataTables_paginate .paginate_button { color: var(--text) !important; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: var(--blue) !important; color: #000 !important; border-radius: 4px !important; }
+.dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_length label, .dataTables_wrapper .dataTables_filter label { color: var(--muted) !important; }
+.dataTables_wrapper .dataTables_length select, .dataTables_wrapper .dataTables_filter input { background: #1a2540 !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 4px; padding: 3px 6px; }
+/* Status badges */
+.badge-completed { background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid var(--green); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.badge-open { background: rgba(255,61,87,0.15); color: var(--red); border: 1px solid var(--red); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.badge-progress { background: rgba(255,145,0,0.15); color: var(--orange); border: 1px solid var(--orange); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+/* Links */
+.wr-link { color: var(--blue); text-decoration: none; font-size: 0.78rem; }
+.wr-link:hover { color: var(--teal); }
+.wr-link-3d { color: var(--purple); text-decoration: none; font-size: 0.78rem; }
+.wr-link-3d:hover { color: var(--teal); }
+/* Heatmap */
+.heatmap-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.heatmap-table th, .heatmap-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: center; }
+.heatmap-table th { background: #0d1628; color: var(--blue); }
+/* Modal */
+.wr-modal-overlay { display:none; position:fixed; top:0;left:0;width:100%;height:100%; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:center; }
+.wr-modal-overlay.active { display:flex; }
+.wr-modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-width: 90vw; max-height: 90vh; overflow-y:auto; position:relative; }
+.wr-modal-box img { max-width: 100%; max-height: 70vh; display:block; margin: 0 auto; border-radius: 8px; }
+.wr-modal-close { position:absolute; top:10px;right:14px; font-size:1.4rem; cursor:pointer; color: var(--muted); }
+.wr-modal-close:hover { color: var(--red); }
+.wr-modal-label { text-align:center; color: var(--muted); font-size:0.75rem; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="dash-header">
+  <div>
+    <h1>🔊 PPPC ACOUSTIC LEAK DASHBOARD 2026</h1>
+    <div style="color:var(--muted);font-size:0.72rem;margin-top:4px;">Predictive Maintenance · Acoustic Camera Inspection Program</div>
+  </div>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <span class="badge-live">● LIVE</span>
+    <span style="color:var(--muted);font-size:0.72rem;" id="lastUpdated"></span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ROW 1: Case + Cost KPIs -->
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="klbl">Total Cases</div><div class="kval white" id="kpi-total"></div></div>
+  <div class="kpi-card"><div class="klbl">Completed</div><div class="kval green" id="kpi-completed"></div></div>
+  <div class="kpi-card"><div class="klbl">Open</div><div class="kval red" id="kpi-open"></div></div>
+  <div class="kpi-card"><div class="klbl">Total Cost (THB)</div><div class="kval blue" id="kpi-total-cost"></div></div>
+  <div class="kpi-card"><div class="klbl">Saving Cost (THB)</div><div class="kval teal" id="kpi-saving"></div></div>
+  <div class="kpi-card"><div class="klbl">Remaining Cost (THB)</div><div class="kval red" id="kpi-remaining"></div></div>
+</div>
+
+<!-- ROW 2: Energy KPIs -->
+<div class="energy-grid">
+  <div class="energy-kpi">
+    <div class="ehead" style="background:rgba(255,145,0,0.15);color:var(--orange);">⚡ kWh Loss<span class="unit">kWh / yr</span></div>
+    <div class="erow">
+      <div class="ecell total"><div class="elbl">Total</div><div class="eval" id="e-kwh-total"></div></div>
+      <div class="ecell saving"><div class="elbl">Saving</div><div class="eval" id="e-kwh-saving"></div></div>
+      <div class="ecell remain"><div class="elbl">Remaining</div><div class="eval" id="e-kwh-remain"></div></div>
+    </div>
+  </div>
+  <div class="energy-kpi">
+    <div class="ehead" style="background:rgba(199,125,255,0.15);color:var(--purple);">💧 Steam Loss<span class="unit">ton steam</span></div>
+    <div class="erow">
+      <div class="ecell total"><div class="elbl">Total</div><div class="eval" id="e-steam-total"></div></div>
+      <div class="ecell saving"><div class="elbl">Saving</div><div class="eval" id="e-steam-saving"></div></div>
+      <div class="ecell remain"><div class="elbl">Remaining</div><div class="eval" id="e-steam-remain"></div></div>
+    </div>
+  </div>
+  <div class="energy-kpi">
+    <div class="ehead" style="background:rgba(0,230,118,0.15);color:var(--green);">🌱 CO₂ Emission<span class="unit">ton CO₂</span></div>
+    <div class="erow">
+      <div class="ecell total"><div class="elbl">Total</div><div class="eval" id="e-co2-total"></div></div>
+      <div class="ecell saving"><div class="elbl">Saving</div><div class="eval" id="e-co2-saving"></div></div>
+      <div class="ecell remain"><div class="elbl">Remaining</div><div class="eval" id="e-co2-remain"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="chart-grid-2">
+  <div class="chart-card"><h6>Status by Section</h6><canvas id="chartSecStatus"></canvas></div>
+  <div class="chart-card"><h6>Damage Cost by Section</h6><canvas id="chartSecDamage"></canvas></div>
+</div>
+<!-- Charts Row 2 -->
+<div class="chart-grid-3">
+  <div class="chart-card" style="grid-column: span 1"><h6>Repair Progress by Plant</h6><canvas id="chartPlantStatus"></canvas></div>
+  <div class="chart-card"><h6>Cost Split</h6><canvas id="chartDoughnut"></canvas></div>
+  <div class="chart-card"><h6>Monthly Saving Trend</h6><canvas id="chartMonthly"></canvas></div>
+</div>
+<!-- Charts Row 3 -->
+<div class="chart-grid-2">
+  <div class="chart-card"><h6>Energy Loss by Section</h6><canvas id="chartEnergySection"></canvas></div>
+  <div class="chart-card"><h6>GHG Emission by Section</h6><canvas id="chartGHG"></canvas></div>
+</div>
+<!-- Charts Row 4 -->
+<div class="chart-grid-2">
+  <div class="chart-card"><h6>Saving Cost by Section</h6><canvas id="chartSecSaving"></canvas></div>
+  <div class="chart-card"><h6>Remaining Cost by Section</h6><canvas id="chartSecRemaining"></canvas></div>
+</div>
+<!-- Charts Row 5 -->
+<div class="chart-card mb-3">
+  <h6>Cost Saving by Month by Section</h6>
+  <canvas id="chartMonthlySec" style="max-height:300px;"></canvas>
+</div>
+<!-- Charts Row 6 -->
+<div class="chart-grid-2">
+  <div class="chart-card"><h6>Top 10 Largest Leaks</h6><canvas id="chartTop10"></canvas></div>
+  <div class="chart-card"><h6>Heatmap: Section × Plant (THB)</h6><div id="heatmapContainer" style="overflow-x:auto;"></div></div>
+</div>
+
+<!-- DataTable -->
+<div class="chart-card mt-3">
+  <div class="section-title">📋 Leak Records</div>
+  <div class="filter-bar">
+    <select id="filterStatus"><option value="">All Status</option><option value="Completed">Completed</option><option value="Open">Open</option></select>
+    <select id="filterPlant"><option value="">All Plants</option></select>
+    <select id="filterSection"><option value="">All Sections</option></select>
+    <select id="filterGas"><option value="">All Gas</option></select>
+    <button onclick="resetFilters()">↺ Reset</button>
+    <span id="recordCount">0</span>
+    <button id="exportBtn">⬇ Export Excel</button>
+  </div>
+  <div style="overflow-x:auto;">
+    <table id="leakTable" class="table table-sm" style="width:100%;">
+      <thead>
+        <tr>
+          <th>WR No.</th><th>Plant</th><th>Section</th><th>Location</th>
+          <th>Map</th><th>3D</th><th>Gas</th><th>Description</th>
+          <th>Damage (THB)</th><th>Status</th><th>Inspection</th><th>Close Date</th><th>Repair Days</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end content -->
+
+<!-- WR Image Modal -->
+<div class="wr-modal-overlay" id="wrModal">
+  <div class="wr-modal-box" id="wrModalBox">
+    <span class="wr-modal-close" id="wrModalClose">✕</span>
+    <div id="wrModalContent"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.21/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.18.5/package/dist/xlsx.full.min.js"></script>
+<script>
+const AGG = {"total_cases": 82, "completed": 66, "open": 16, "total_cost": 2418727.4000000004, "saving_cost": 1905843.0700000003, "remaining_cost": 512884.32999999996, "kwh": {"total": 661611.388, "saving": 526466.264, "remaining": 135145.124}, "steam": {"total": 2184.854085714286, "saving": 1684.7926, "remaining": 500.0614857142857}, "co2": {"total": 1263.5843724274287, "saving": 978.6456685679999, "remaining": 284.93870385942853}, "sections": ["EMEN", "EMPA", "EMPU", "EMUT", "MMEN", "MMPA", "MMPU", "MMUT"], "plants": ["CZ-2", "DM-2", "EV-1", "LK-2", "PB-3", "PB-4", "PL-1", "PL-2", "Paper", "RB-1", "RB-2", "SH-1"], "section_saving": {"EMEN": 128409.37, "EMPA": 282949.01, "EMPU": 736942.72, "EMUT": 75122.12, "MMPA": 76359.66, "MMPU": 528962.54, "MMUT": 77097.65}, "section_remaining": {"EMEN": 9731.41, "EMPA": 18063.03, "EMPU": 271500.35000000003, "MMEN": 135277.47, "MMPU": 78312.07}, "saving_months": ["2025-08", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"], "saving_by_month_section": {"2025-08": {"EMEN": 0.0, "EMPA": 0.0, "EMPU": 51048.9, "EMUT": 0.0, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 0.0, "MMUT": 0.0}, "2026-02": {"EMEN": 0.0, "EMPA": 18652.54, "EMPU": 25787.81, "EMUT": 10224.79, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 30176.78, "MMUT": 38146.13}, "2026-03": {"EMEN": 75663.85, "EMPA": 0.0, "EMPU": 312631.77, "EMUT": 39043.96, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 498785.76, "MMUT": 0.0}, "2026-04": {"EMEN": 0.0, "EMPA": 0.0, "EMPU": 0.0, "EMUT": 0.0, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 0.0, "MMUT": 38951.52}, "2026-05": {"EMEN": 0.0, "EMPA": 206716.4, "EMPU": 97137.32, "EMUT": 0.0, "MMEN": 0.0, "MMPA": 30668.19, "MMPU": 0.0, "MMUT": 0.0}, "2026-06": {"EMEN": 0.0, "EMPA": 0.0, "EMPU": 73016.59, "EMUT": 0.0, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 0.0, "MMUT": 0.0}, "2026-07": {"EMEN": 52745.52, "EMPA": 0.0, "EMPU": 0.0, "EMUT": 0.0, "MMEN": 0.0, "MMPA": 45691.47, "MMPU": 0.0, "MMUT": 0.0}, "2026-08": {"EMEN": 0.0, "EMPA": 57580.07000000001, "EMPU": 177320.33000000002, "EMUT": 25853.37, "MMEN": 0.0, "MMPA": 0.0, "MMPU": 0.0, "MMUT": 0.0}}, "sec_damage": {"EMEN": 138140.78, "EMPA": 301012.04000000004, "EMPU": 1008443.0700000001, "EMUT": 75122.12, "MMEN": 135277.47, "MMPA": 76359.66, "MMPU": 607274.6100000001, "MMUT": 77097.65}, "sec_energy": {"kwh": {"EMEN": 34158.104, "EMPA": 120404.816, "EMPU": 403377.22799999994, "EMUT": 30048.847999999998, "MMEN": 0.0, "MMPA": 30543.864, "MMPU": 27497.92, "MMUT": 15580.607999999998}, "steam": {"EMEN": 150.7014857142857, "EMPA": 0.0, "EMPU": 0.0, "EMUT": 0.0, "MMEN": 386.50705714285715, "MMPA": 0.0, "MMPU": 1538.6566, "MMUT": 108.98894285714285}, "co2": {"EMEN": 84.14946461942856, "EMPA": 31.546061792000003, "EMPU": 105.684833736, "EMUT": 7.872798176000001, "MMEN": 192.8670215142857, "MMPA": 8.002492367999999, "MMPU": 774.9940984399999, "MMUT": 58.46760178171428}}, "sec_status_comp": {"EMEN": 4, "EMPA": 19, "EMPU": 28, "EMUT": 3, "MMPA": 3, "MMPU": 7, "MMUT": 2}, "sec_status_open": {"EMEN": 1, "EMPA": 1, "EMPU": 10, "MMEN": 2, "MMPU": 2}, "plant_status_comp": {"CZ-2": 1, "DM-2": 2, "EV-1": 1, "LK-2": 1, "PB-3": 2, "PL-1": 15, "PL-2": 19, "Paper": 22, "RB-1": 1, "RB-2": 1, "SH-1": 1}, "plant_status_open": {"PB-4": 1, "PL-1": 6, "PL-2": 4, "Paper": 1, "RB-2": 2, "SH-1": 2}, "top10": [{"wr_no": "WR7250250800823", "location": "Steam trap PL2-LP001", "plant": "PL-2", "section": "MMPU", "damage_cost": 198201.72, "status": "Completed"}, {"wr_no": "WR7250250800805", "location": "Steam trap SH2-ข้าง Valve110PIC002", "plant": "PL-2", "section": "MMPU", "damage_cost": 88876.26, "status": "Completed"}, {"wr_no": "WR7250250800669", "location": "ท่อ Steam ก่อนเข้า Valve 404HIC344", "plant": "PL-2", "section": "MMPU", "damage_cost": 84184.89, "status": "Completed"}, {"wr_no": "WR7250260200101", "location": "LP Steam RB-2 To Sheeting", "plant": "RB-2", "section": "MMEN", "damage_cost": 78404.91, "status": "Open"}, {"wr_no": "WR7250250800803", "location": "Steam trap PL2-MP Stram ข้าง Pump107M012", "plant": "PL-2", "section": "MMPU", "damage_cost": 71893.73, "status": "Completed"}, {"wr_no": "WR7250250801616", "location": " Steam trap RB2 KK1-MP-006", "plant": "RB-2", "section": "MMEN", "damage_cost": 56872.56, "status": "Open"}, {"wr_no": "WR7250251201602", "location": "สายลมเข้าValve107HS046", "plant": "PL-2", "section": "EMPU", "damage_cost": 53087.1, "status": "Completed"}, {"wr_no": "WR7250260601296", "location": "ท่อ Steam KK-1 LP007", "plant": "PB-3", "section": "EMEN", "damage_cost": 52745.52, "status": "Completed"}, {"wr_no": "WR7250250800590", "location": "สายลมเข้า Valve PM11KJ46ES01", "plant": "PL-2", "section": "EMPU", "damage_cost": 51048.9, "status": "Completed"}, {"wr_no": "WR7250260401265", "location": "สายลมเข้า Valve 008LV865", "plant": "PL-1", "section": "EMPU", "damage_cost": 50547.79, "status": "Completed"}], "heatmap": [{"section": "EMEN", "plant": "PB-3", "damage_cost": 89962.76}, {"section": "EMEN", "plant": "PB-4", "damage_cost": 9731.41}, {"section": "EMEN", "plant": "RB-1", "damage_cost": 12418.84}, {"section": "EMEN", "plant": "RB-2", "damage_cost": 26027.77}, {"section": "EMPA", "plant": "Paper", "damage_cost": 301012.04}, {"section": "EMPU", "plant": "PL-1", "damage_cost": 568212.17}, {"section": "EMPU", "plant": "PL-2", "damage_cost": 397137.9}, {"section": "EMPU", "plant": "SH-1", "damage_cost": 43093.0}, {"section": "EMUT", "plant": "DM-2", "damage_cost": 49268.75}, {"section": "EMUT", "plant": "EV-1", "damage_cost": 25853.37}, {"section": "MMEN", "plant": "RB-2", "damage_cost": 135277.47}, {"section": "MMPA", "plant": "Paper", "damage_cost": 76359.66}, {"section": "MMPU", "plant": "PL-1", "damage_cost": 30176.78}, {"section": "MMPU", "plant": "PL-2", "damage_cost": 577097.83}, {"section": "MMUT", "plant": "CZ-2", "damage_cost": 38951.52}, {"section": "MMUT", "plant": "LK-2", "damage_cost": 38146.13}], "repair_months": ["2025-08", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"], "repair_count_by_month": {"2025-08": 1, "2026-02": 5, "2026-03": 25, "2026-04": 1, "2026-05": 21, "2026-06": 2, "2026-07": 3, "2026-08": 8}, "repair_by_section": {"EMEN": [0, 0, 3, 0, 0, 0, 1, 0], "EMPA": [0, 1, 0, 0, 16, 0, 0, 2], "EMPU": [1, 1, 15, 0, 4, 2, 0, 5], "EMUT": [0, 1, 1, 0, 0, 0, 0, 1], "MMPA": [0, 0, 0, 0, 1, 0, 2, 0], "MMPU": [0, 1, 6, 0, 0, 0, 0, 0], "MMUT": [0, 1, 0, 1, 0, 0, 0, 0]}};
+const RECORDS = [{"seq": 1, "plant": "PB-3", "location": "Filter ข้าง Oil Burner PB3", "section": "EMEN", "department": "EEMN", "inspection_date": "2025-01-30", "wr_no": "WR7250250200261", "gas_medium": "Air", "description": "Filter ข้าง Oil Burner PB3", "location_map": null, "location_3d": null, "damage_cost": 37217.24, "status": "Completed", "repair_month": "2026-03-10", "close_date": null, "inspection_month": 1, "_sheet": "Utility&Energy", "kwh_loss": 14886.895999999999, "steam_loss": 0.0, "co2_ton": 3.9003667519999996, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 2, "plant": "RB-1", "location": "Solenoid Valve น้ำดับเพลิง ชั้น 13 RB1. 717HV597B", "section": "EMEN", "department": "EEMN", "inspection_date": "2025-01-30", "wr_no": "WR7250250200267", "gas_medium": "Air", "description": "Solenoid Valve น้ำดับเพลิง ชั้น 13 RB1. 717HV597B", "location_map": null, "location_3d": null, "damage_cost": 12418.84, "status": "Completed", "repair_month": "2026-03-05", "close_date": null, "inspection_month": 1, "_sheet": "Utility&Energy", "kwh_loss": 4967.536, "steam_loss": 0.0, "co2_ton": 1.3014944320000001, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 3, "plant": "RB-2", "location": "ตู้ Solenoid ชั้น2 RB2", "section": "EMEN", "department": "EEMN", "inspection_date": "2025-01-30", "wr_no": "WR7250250200270", "gas_medium": "Air", "description": "ตู้ Solenoid ชั้น2 RB2", "location_map": null, "location_3d": null, "damage_cost": 26027.77, "status": "Completed", "repair_month": "2026-03-11", "close_date": null, "inspection_month": 1, "_sheet": "Utility&Energy", "kwh_loss": 10411.108, "steam_loss": 0.0, "co2_ton": 2.727710296, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 4, "plant": "DM-2", "location": "Filter ข้าง SBA-B Tank", "section": "EMUT", "department": "EEMN", "inspection_date": "2025-07-29", "wr_no": "WR7250250800188", "gas_medium": "Air", "description": "Filter ข้าง SBA-B Tank", "location_map": null, "location_3d": null, "damage_cost": 39043.96, "status": "Completed", "repair_month": "2026-03-19", "close_date": null, "inspection_month": 7, "_sheet": "Utility&Energy", "kwh_loss": 15617.583999999999, "steam_loss": 0.0, "co2_ton": 4.091807008, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 5, "plant": "DM-2", "location": "Fitting Air Heater MB-A", "section": "EMUT", "department": "EEMN", "inspection_date": "2025-07-29", "wr_no": "WR7250250800189", "gas_medium": "Air", "description": "Fitting Air Heater MB-A", "location_map": null, "location_3d": null, "damage_cost": 10224.79, "status": "Completed", "repair_month": "2026-02-17", "close_date": null, "inspection_month": 7, "_sheet": "Utility&Energy", "kwh_loss": 4089.916, "steam_loss": 0.0, "co2_ton": 1.0715579920000002, "repair_days": null, "repair_ym": "2026-02"}, {"seq": 6, "plant": "RB-2", "location": " Steam trap RB2 KK1-MP-006", "section": "MMEN", "department": "MEMN", "inspection_date": "2025-08-28", "wr_no": "WR7250250801616", "gas_medium": "Steam", "description": " Steam trap RB2 KK1-MP-006", "location_map": "https://maps.app.goo.gl/h3an3DZh8fgPwpMd6?g_st=il", "location_3d": null, "damage_cost": 56872.56, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 8, "_sheet": "Utility&Energy", "kwh_loss": 0.0, "steam_loss": 162.49302857142857, "co2_ton": 81.08402125714285, "repair_days": null, "repair_ym": null}, {"seq": 7, "plant": "RB-2", "location": "LP Steam RB-2 To Sheeting", "section": "MMEN", "department": "MEMN", "inspection_date": "2026-01-28", "wr_no": "WR7250260200101", "gas_medium": "Steam", "description": "LP Steam RB-2 To Sheeting", "location_map": "https://maps.app.goo.gl/2zvbZKVBvnTsfnnf6?g_st=il", "location_3d": null, "damage_cost": 78404.91, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 1, "_sheet": "Utility&Energy", "kwh_loss": 0.0, "steam_loss": 224.01402857142858, "co2_ton": 111.78300025714286, "repair_days": null, "repair_ym": null}, {"seq": 8, "plant": "LK-2", "location": "Valve Steam Fuel Oil Tank Cleaned On", "section": "MMUT", "department": "MMUT", "inspection_date": "2026-02-04", "wr_no": "WR7250260200798", "gas_medium": "Steam", "description": "Valae Steam Fuel Oil Tank Cleaned On", "location_map": null, "location_3d": null, "damage_cost": 38146.13, "status": "Completed", "repair_month": "2026-02-17", "close_date": null, "inspection_month": 2, "_sheet": "Utility&Energy", "kwh_loss": 0.0, "steam_loss": 108.98894285714285, "co2_ton": 54.38548248571428, "repair_days": null, "repair_ym": "2026-02"}, {"seq": 9, "plant": "CZ-2", "location": "Line instrument air to CZ-2", "section": "MMUT", "department": "MMUT", "inspection_date": "2026-03-10", "wr_no": "WR7250260300506", "gas_medium": "Air", "description": "Line instrument air to CZ-2", "location_map": "https://maps.app.goo.gl/QZtKGZ5e8QwWijEv9?g_st=il", "location_3d": null, "damage_cost": 38951.52, "status": "Completed", "repair_month": "2026-04-07", "close_date": null, "inspection_month": 3, "_sheet": "Utility&Energy", "kwh_loss": 15580.607999999998, "steam_loss": 0.0, "co2_ton": 4.082119295999999, "repair_days": null, "repair_ym": "2026-04"}, {"seq": 10, "plant": "PB-3", "location": "ท่อ Steam KK-1 LP007", "section": "EMEN", "department": "EEMN", "inspection_date": "2026-06-19", "wr_no": "WR7250260601296", "gas_medium": "Steam", "description": "ท่อ Steam KK-1 LP007", "location_map": "https://maps.app.goo.gl/VubcjDnDd3VYr65P9?g_st=il", "location_3d": null, "damage_cost": 52745.52, "status": "Completed", "repair_month": "2026-07-01", "close_date": null, "inspection_month": 6, "_sheet": "Utility&Energy", "kwh_loss": 0.0, "steam_loss": 150.7014857142857, "co2_ton": 75.20004137142857, "repair_days": null, "repair_ym": "2026-07"}, {"seq": 11, "plant": "EV-1", "location": "สายลมValve 518HS.038w DN.80", "section": "EMUT", "department": "EEMN", "inspection_date": "2026-06-22", "wr_no": "WR7250260601456", "gas_medium": "Air", "description": "ลมValve 518HS.038w DN.80", "location_map": "https://maps.app.goo.gl/1VPFtTCtSVh533s16?g_st=il", "location_3d": null, "damage_cost": 25853.37, "status": "Completed", "repair_month": "2026-08-18", "close_date": null, "inspection_month": 6, "_sheet": "Utility&Energy", "kwh_loss": 10341.348, "steam_loss": 0.0, "co2_ton": 2.709433176, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 12, "plant": "PB-4", "location": "สายลมด้างล่าง ESP PB-4", "section": "EMEN", "department": "EEMN", "inspection_date": "2026-07-13", "wr_no": "WR7250260701181", "gas_medium": "Air", "description": "สายลมด้างล่าง ESP PB-4", "location_map": null, "location_3d": null, "damage_cost": 9731.41, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "Utility&Energy", "kwh_loss": 3892.564, "steam_loss": 0.0, "co2_ton": 1.0198517679999999, "repair_days": null, "repair_ym": null}, {"seq": 1, "plant": "Paper", "location": "สายลมเข้าValve Clean Spool", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-01-14", "wr_no": "WR7250260200116", "gas_medium": "Air", "description": "สายลมเข้าValve Clean Spool", "location_map": null, "location_3d": null, "damage_cost": 18652.54, "status": "Completed", "repair_month": "2026-02-18", "close_date": null, "inspection_month": 1, "_sheet": "PAPER", "kwh_loss": 7461.0160000000005, "steam_loss": 0.0, "co2_ton": 1.9547861920000003, "repair_days": null, "repair_ym": "2026-02"}, {"seq": 2, "plant": "Paper", "location": "Fitting Regulato ตู้ PM15MK02", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300728", "gas_medium": "Air", "description": "พบจุดรั่วFitting Regulato ตู้ PM15MK02", "location_map": "https://maps.app.goo.gl/UfWNraE7jjAmKC1A7?g_st=il", "location_3d": null, "damage_cost": 22388.45, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 8955.380000000001, "steam_loss": 0.0, "co2_ton": 2.3463095600000003, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 3, "plant": "Paper", "location": " Fitting Solenoid ตู้ PM15MR01", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300736", "gas_medium": "Air", "description": "พบจุดรั่ว Fitting Solenoid ตู้ PM15MR01", "location_map": "https://maps.app.goo.gl/tqboXrXWZwe2YLQE7?g_st=il", "location_3d": null, "damage_cost": 20825.75, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 8330.3, "steam_loss": 0.0, "co2_ton": 2.1825386, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 4, "plant": "Paper", "location": "Fitting ตู้ PC03", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300737", "gas_medium": "Air", "description": "พบจุดรั่วFitting ตู้ PC03", "location_map": "https://maps.app.goo.gl/oLf6jW91LUvgMvyg8?g_st=il", "location_3d": null, "damage_cost": 34668.66, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 13867.464000000002, "steam_loss": 0.0, "co2_ton": 3.6332755680000006, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 5, "plant": "Paper", "location": " Fitting ตู้ PC05", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300738", "gas_medium": "Air", "description": "พบจุดรั่ว Fitting ตู้ PC05", "location_map": "https://maps.app.goo.gl/NJheUShmrnqpLtjB9?g_st=il", "location_3d": null, "damage_cost": 4492.75, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 1797.1, "steam_loss": 0.0, "co2_ton": 0.4708402, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 6, "plant": "Paper", "location": "Fitting ตู้ PC11", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300741", "gas_medium": "Air", "description": "พบจุดรั่วFitting ตู้ PC11", "location_map": "https://maps.app.goo.gl/AdKfExgc4VkdqgD7A?g_st=il", "location_3d": null, "damage_cost": 7570.69, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 3028.276, "steam_loss": 0.0, "co2_ton": 0.7934083120000001, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 7, "plant": "Paper", "location": "Manifold S1 PM11MG05", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300742", "gas_medium": "Air", "description": "พบจุดรั่วManifold S1 PM11MG05", "location_map": "https://maps.app.goo.gl/p4UCuHFyDX7qAzrh6?g_st=il", "location_3d": null, "damage_cost": 3680.6, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 1472.24, "steam_loss": 0.0, "co2_ton": 0.38572688, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 8, "plant": "Paper", "location": "Manifold S1 ตู้ PM11MB01", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300745", "gas_medium": "Air", "description": "พบจุดรั่วManifold S1 ตู้ PM11MB01", "location_map": "https://maps.app.goo.gl/rTWdc9wZejCV2pJ38?g_st=il", "location_3d": null, "damage_cost": 6462.74, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 2585.096, "steam_loss": 0.0, "co2_ton": 0.677295152, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 9, "plant": "Paper", "location": "Manifold S1 ตู้ PM11MG03", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300747", "gas_medium": "Air", "description": "พบจุดรั่วManifold S1 ตู้ PM11MG03", "location_map": "https://maps.app.goo.gl/z3pKrqfLjQRc4r4Z6?g_st=il", "location_3d": null, "damage_cost": 4129.61, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 1651.8439999999998, "steam_loss": 0.0, "co2_ton": 0.43278312799999996, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 10, "plant": "Paper", "location": "Manifold S1 ตู้ PM11MP01", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300748", "gas_medium": "Air", "description": "พบจุดรั่วManifold S1 ตู้ PM11MP01", "location_map": "https://maps.google.com?q=16.7041726,102.7484134&entry=gps&shh=CAE&lucs=,94297699,94231188,94280568,47071704,94218641,94282134,94286869&g_st=il", "location_3d": null, "damage_cost": 4726.52, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 1890.6080000000002, "steam_loss": 0.0, "co2_ton": 0.49533929600000004, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 11, "plant": "Paper", "location": "Manifold S1 ตู้ PM11MP02", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300750", "gas_medium": "Air", "description": "พบจุดรั่วManifold S1 ตู้ PM11MP02", "location_map": "https://maps.app.goo.gl/vJ1w4tmM47ji5sF46?g_st=il", "location_3d": null, "damage_cost": 12916.42, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 5166.568, "steam_loss": 0.0, "co2_ton": 1.353640816, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 12, "plant": "Paper", "location": "Manifold S2 ตู้ PM11MG01", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300751", "gas_medium": "Air", "description": "พบจุดรั่วManifold S2 ตู้ PM11MG01", "location_map": "https://maps.app.goo.gl/cTDm5Zgf1dNYwUP37?g_st=il", "location_3d": null, "damage_cost": 7018.15, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 2807.2599999999998, "steam_loss": 0.0, "co2_ton": 0.73550212, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 13, "plant": "Paper", "location": "Solenoid #4 ตู้ PM12MA09", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300752", "gas_medium": "Air", "description": "พบจุดรั่วSolenoid #4 ตู้ PM12MA09", "location_map": "https://maps.app.goo.gl/5oi7CbUeouezGwdq8?g_st=il", "location_3d": null, "damage_cost": 3364.26, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 1345.7040000000002, "steam_loss": 0.0, "co2_ton": 0.3525744480000001, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 14, "plant": "Paper", "location": "Solenoid PM13HJ22", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300753", "gas_medium": "Air", "description": "พบจุดรั่วSolenoid PM13HJ22", "location_map": "https://maps.app.goo.gl/bWRim4iwUNQAQXTH8?g_st=il", "location_3d": null, "damage_cost": 19878.94, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 7951.575999999999, "steam_loss": 0.0, "co2_ton": 2.083312912, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 15, "plant": "Paper", "location": "Solenoid ตู้ PM11MC01", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300756", "gas_medium": "Air", "description": "พบจุดรั่วSolenoid ตู้ PM11MC01", "location_map": "https://maps.app.goo.gl/AmnmpM9g73gbaq9v7?g_st=il", "location_3d": null, "damage_cost": 6915.94, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 2766.3759999999997, "steam_loss": 0.0, "co2_ton": 0.724790512, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 16, "plant": "Paper", "location": "ท่อลมเข้า Air Filter", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300757", "gas_medium": "Air", "description": "พบจุดรั่วท่อลมเข้า Air Filter", "location_map": "https://maps.app.goo.gl/Xi553wo6mSD6Lc856?g_st=il", "location_3d": null, "damage_cost": 7391.88, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 2956.752, "steam_loss": 0.0, "co2_ton": 0.774669024, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 17, "plant": "Paper", "location": "สายลมเข้าตู้ PM15MG03", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300758", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าตู้ PM15MG03", "location_map": "https://maps.app.goo.gl/oJrm2FP9SYM22t3X8?g_st=il", "location_3d": null, "damage_cost": 40285.04, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 16114.016, "steam_loss": 0.0, "co2_ton": 4.221872192, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 18, "plant": "Paper", "location": "หน้าแปลน Line ลมออกจาก Aircompressor", "section": "MMPA", "department": "PAMN", "inspection_date": "2026-03-14", "wr_no": "WR7250260300759", "gas_medium": "Air", "description": "พบจุดรั่วหน้าแปลน Line ลมออกจาก Aircompressor", "location_map": "https://maps.app.goo.gl/Xi553wo6mSD6Lc856?g_st=il", "location_3d": null, "damage_cost": 30668.19, "status": "Completed", "repair_month": "2026-05-15", "close_date": null, "inspection_month": 3, "_sheet": "PAPER", "kwh_loss": 12267.276, "steam_loss": 0.0, "co2_ton": 3.2140263119999997, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 19, "plant": "Paper", "location": "สายลมจุดรั่วที่ D.44 #1", "section": "MMPA", "department": "PAMN", "inspection_date": "2026-06-02", "wr_no": "WR7250260600129", "gas_medium": "Air", "description": "พบจุดรั่วสายลมจุดรั่วที่ D.44 #1", "location_map": "https://maps.app.goo.gl/joTYTE5Fv66W7kqq9?g_st=il", "location_3d": null, "damage_cost": 18236.54, "status": "Completed", "repair_month": "2026-07-15", "close_date": null, "inspection_month": 6, "_sheet": "PAPER", "kwh_loss": 7294.616, "steam_loss": 0.0, "co2_ton": 1.911189392, "repair_days": null, "repair_ym": "2026-07"}, {"seq": 20, "plant": "Paper", "location": "สายลมจุดรั่วที่ D.44 #2", "section": "MMPA", "department": "PAMN", "inspection_date": "2026-06-02", "wr_no": "WR7250260600130", "gas_medium": "Air", "description": "พบจุดรั่ว สายลมจุดรั่วที่ D.44 #2", "location_map": "https://maps.app.goo.gl/joTYTE5Fv66W7kqq9?g_st=il", "location_3d": null, "damage_cost": 27454.93, "status": "Completed", "repair_month": "2026-07-15", "close_date": null, "inspection_month": 6, "_sheet": "PAPER", "kwh_loss": 10981.972, "steam_loss": 0.0, "co2_ton": 2.877276664, "repair_days": null, "repair_ym": "2026-07"}, {"seq": 21, "plant": "Paper", "location": "สายลมเข้า Solenoid เครื่องห่อฟิล์ม", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-07-07", "wr_no": "WR7250260701178", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Solenoid เครื่องห่อฟิล์ม", "location_map": "https://maps.app.goo.gl/c8Az5uDyTSdZSPbt5?g_st=il", "location_3d": null, "damage_cost": 30218.74, "status": "Completed", "repair_month": "2026-08-18", "close_date": null, "inspection_month": 7, "_sheet": "PAPER", "kwh_loss": 12087.496000000001, "steam_loss": 0.0, "co2_ton": 3.1669239520000003, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 22, "plant": "Paper", "location": "สายลมจากตู้ PM19MA26", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-07-07", "wr_no": "WR7250260701179", "gas_medium": "Air", "description": "พบจุดรั่วสายลมจากตู้ PM19MA26", "location_map": "https://maps.app.goo.gl/BuAYmT19DDFf98x9A?g_st=il", "location_3d": null, "damage_cost": 27361.33, "status": "Completed", "repair_month": "2026-08-18", "close_date": null, "inspection_month": 7, "_sheet": "PAPER", "kwh_loss": 10944.532000000001, "steam_loss": 0.0, "co2_ton": 2.8674673840000002, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 23, "plant": "Paper", "location": "สายลมข้าง roll #9", "section": "EMPA", "department": "PAMN", "inspection_date": "2026-07-07", "wr_no": "WR7250260701180", "gas_medium": "Air", "description": "พบจุดรั่วสายลมข้าง roll #9", "location_map": "https://maps.app.goo.gl/EWBiHevnfxosA3Qm8", "location_3d": null, "damage_cost": 18063.03, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "PAPER", "kwh_loss": 7225.2119999999995, "steam_loss": 0.0, "co2_ton": 1.893005544, "repair_days": null, "repair_ym": null}, {"seq": 1, "plant": "PL-1", "location": "Filter 005AH12", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-03-31", "wr_no": "WR7250250400029", "gas_medium": "Air", "description": " ", "location_map": null, "location_3d": null, "damage_cost": 6002.91, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 2401.1639999999998, "steam_loss": 0.0, "co2_ton": 0.6291049679999999, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 3, "plant": "PL-2", "location": "จุดต่อสายลม 29IAH107.G", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-03-31", "wr_no": "WR7250250400026", "gas_medium": "Air", "description": "พบจุดรั่ว จุดต่อสายลม 29IAH107.G", "location_map": null, "location_3d": null, "damage_cost": 8708.89, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 3483.5559999999996, "steam_loss": 0.0, "co2_ton": 0.9126916719999999, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 4, "plant": "SH-1", "location": "สายลม 009AH45A", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-03-31", "wr_no": "WR7250250400024", "gas_medium": "Air", "description": "พบจุดรั่ว สายลม 009AH45A", "location_map": null, "location_3d": null, "damage_cost": 3795.17, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 1518.068, "steam_loss": 0.0, "co2_ton": 0.397733816, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 5, "plant": "PL-2", "location": "สายลม Air Heater 104FT661", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-04-03", "wr_no": "WR7250250400201", "gas_medium": "Air", "description": "พบจุดรั่ว สายลม Air Heater 104FT661", "location_map": null, "location_3d": null, "damage_cost": 10010.88, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 4, "_sheet": "FIBER LINE", "kwh_loss": 4004.352, "steam_loss": 0.0, "co2_ton": 1.049140224, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 6, "plant": "PL-1", "location": "ท่อลมเข้า Air Heater 007AH20A", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-05-21", "wr_no": "WR7250250500664", "gas_medium": "Air", "description": "พบจุดรั่วท่อลมเข้า Air Heater 007AH20A", "location_map": null, "location_3d": null, "damage_cost": 30176.78, "status": "Completed", "repair_month": "2026-02-11", "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 12070.712, "steam_loss": 0.0, "co2_ton": 3.1625265440000003, "repair_days": null, "repair_ym": "2026-02"}, {"seq": 7, "plant": "PL-1", "location": "Regulator Valve 205KV127A", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-05-22", "wr_no": "WR7250250500828", "gas_medium": "Air", "description": "พบจุดรั่วRegulator Valve 205KV127A", "location_map": "https://maps.app.goo.gl/qT5NmqdwDVJ5sP2r7?g_st=il", "location_3d": null, "damage_cost": 13503.62, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 5401.448, "steam_loss": 0.0, "co2_ton": 1.4151793760000002, "repair_days": null, "repair_ym": null}, {"seq": 8, "plant": "PL-1", "location": "Fitting ต่อสายลม ข้างMT 005M569", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-05-22", "wr_no": "WR7250250500833", "gas_medium": "Air", "description": "พบจุดรั่วFitting ต่อสายลม ข้างMT 005M569", "location_map": null, "location_3d": null, "damage_cost": 16861.26, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 6744.503999999999, "steam_loss": 0.0, "co2_ton": 1.7670600479999998, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 9, "plant": "PL-1", "location": "สายลมข้าง Gear 005M00A", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-05-22", "wr_no": "WR7250250500834", "gas_medium": "Air", "description": "พบจุดรั่ว สายลมข้าง Gear 005M00A", "location_map": "https://maps.app.goo.gl/XVB7v541hdZuULHQ8?g_st=il", "location_3d": null, "damage_cost": 10274.9, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 4109.96, "steam_loss": 0.0, "co2_ton": 1.07680952, "repair_days": null, "repair_ym": null}, {"seq": 10, "plant": "PL-1", "location": "สายลมข้าง Valve 007FV7004", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-05-22", "wr_no": "WR7250250500835", "gas_medium": "Air", "description": "พบจุดรั่วสายลมข้าง Valve 007FV7004", "location_map": null, "location_3d": null, "damage_cost": 11834.96, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 4733.9839999999995, "steam_loss": 0.0, "co2_ton": 1.240303808, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 11, "plant": "PL-1", "location": "สายลมจาก Air Heater 007AH37", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-05-22", "wr_no": "WR7250250500836", "gas_medium": "Air", "description": "พบจุดรั่วสายลมจาก Air Heater 007AH37", "location_map": "https://maps.app.goo.gl/KPrQGRwmctwmGzwH6?g_st=il", "location_3d": "https://my.matterport.com/show/?m=t1RGciW4mcR&ss=154&sr=.02,.23", "damage_cost": 44109.12, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 17643.648, "steam_loss": 0.0, "co2_ton": 4.622635776000001, "repair_days": null, "repair_ym": null}, {"seq": 12, "plant": "PL-2", "location": "สายลมเข้า Valve PM11KJ46ES01", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800590", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve PM11KJ46ES01", "location_map": null, "location_3d": null, "damage_cost": 51048.9, "status": "Completed", "repair_month": "2025-08-15", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 20419.56, "steam_loss": 0.0, "co2_ton": 5.349924720000001, "repair_days": null, "repair_ym": "2025-08"}, {"seq": 13, "plant": "PL-2", "location": "Steam trap PL2-LP001", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800823", "gas_medium": "Steam", "description": "พบจุดรั่วSteam trap PL2-LP001", "location_map": null, "location_3d": null, "damage_cost": 198201.72, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 566.2906285714286, "co2_ton": 282.57902365714284, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 14, "plant": "PL-2", "location": "Steam trap PL2-LPข้าง Pump108M002", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800802", "gas_medium": "Steam", "description": "พบจุดรั่วSteam trap PL2-LPข้าง Pump108M002", "location_map": null, "location_3d": null, "damage_cost": 10673.8, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 30.496571428571425, "co2_ton": 15.217789142857141, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 15, "plant": "PL-2", "location": "Steam trap PL2-MP Stram ข้าง Pump107M012", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800803", "gas_medium": "Steam", "description": "พบจุดรั่วSteam trap PL2-MP Stram ข้าง Pump107M012", "location_map": null, "location_3d": null, "damage_cost": 71893.73, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 205.41065714285713, "co2_ton": 102.4999179142857, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 16, "plant": "PL-2", "location": "steam trap PL2-MP001", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800820", "gas_medium": "Steam", "description": "พบจุดรั่วsteam trap PL2-MP001", "location_map": null, "location_3d": null, "damage_cost": 44955.36, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 128.44388571428573, "co2_ton": 64.09349897142857, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 17, "plant": "PL-2", "location": "Steam trap PL2-MP012", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800814", "gas_medium": "Steam", "description": "พบจุดรั่วSteam trap PL2-MP012", "location_map": "https://maps.app.goo.gl/GSdxYzokobroBn4d7?g_st=il", "location_3d": null, "damage_cost": 39744.05, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 113.55442857142857, "co2_ton": 56.66365985714286, "repair_days": null, "repair_ym": null}, {"seq": 18, "plant": "PL-2", "location": "Steam trap SH2-ข้าง Valve110PIC002", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800805", "gas_medium": "Steam", "description": "พบจุดรั่วSteam trap SH2-ข้าง Valve110PIC002", "location_map": null, "location_3d": null, "damage_cost": 88876.26, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 253.93217142857142, "co2_ton": 126.71215354285714, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 19, "plant": "PL-2", "location": "ท่อ Steam ก่อนเข้า Valve 404HIC344", "section": "MMPU", "department": "PUMN", "inspection_date": "2025-08-05", "wr_no": "WR7250250800669", "gas_medium": "Steam", "description": "พบจุดรั่วท่อ Steam ก่อนเข้า Valve 404HIC344", "location_map": null, "location_3d": null, "damage_cost": 84184.89, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 0.0, "steam_loss": 240.52825714285714, "co2_ton": 120.02360031428572, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 20, "plant": "PL-1", "location": "สายลม Valve 1080V020", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-09-11", "wr_no": "WR7250250900769", "gas_medium": "Air", "description": "พบจุดรั่วสายลม Valve 1080V020", "location_map": null, "location_3d": null, "damage_cost": 25787.81, "status": "Completed", "repair_month": "2026-02-17", "close_date": null, "inspection_month": 9, "_sheet": "FIBER LINE", "kwh_loss": 10315.124, "steam_loss": 0.0, "co2_ton": 2.702562488, "repair_days": null, "repair_ym": "2026-02"}, {"seq": 21, "plant": "PL-2", "location": "สายลมเข้า Valve 404HS249", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-11-22", "wr_no": "WR7250251101352", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve 404HS249", "location_map": null, "location_3d": null, "damage_cost": 37167.35, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 11, "_sheet": "FIBER LINE", "kwh_loss": 14866.939999999999, "steam_loss": 0.0, "co2_ton": 3.8951382799999994, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 22, "plant": "PL-1", "location": "สายลมเข้า Valve205FT604", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-12-11", "wr_no": "WR7250251200760", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve205FT604", "location_map": null, "location_3d": null, "damage_cost": 23320.24, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 12, "_sheet": "FIBER LINE", "kwh_loss": 9328.096000000001, "steam_loss": 0.0, "co2_ton": 2.443961152000001, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 23, "plant": "PL-2", "location": "สายลมเข้าValve107HS046", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-12-24", "wr_no": "WR7250251201602", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าValve107HS046", "location_map": null, "location_3d": null, "damage_cost": 53087.1, "status": "Completed", "repair_month": "2026-03-13", "close_date": null, "inspection_month": 12, "_sheet": "FIBER LINE", "kwh_loss": 21234.84, "steam_loss": 0.0, "co2_ton": 5.56352808, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 24, "plant": "PL-2", "location": "สายลมเข้าValve305V04", "section": "EMPU", "department": "PUMN", "inspection_date": "2025-12-24", "wr_no": "WR7250251201604", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าValve305V04", "location_map": null, "location_3d": null, "damage_cost": 34705.97, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 12, "_sheet": "FIBER LINE", "kwh_loss": 13882.388, "steam_loss": 0.0, "co2_ton": 3.637185656, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 25, "plant": "PL-1", "location": "สายลมเข้าValve205NFV620B", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-01-14", "wr_no": "WR7250260200110", "gas_medium": "Air", "description": "สายลมเข้าValve205NFV620B", "location_map": null, "location_3d": null, "damage_cost": 28530.92, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 1, "_sheet": "FIBER LINE", "kwh_loss": 11412.367999999999, "steam_loss": 0.0, "co2_ton": 2.990040416, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 26, "plant": "PL-2", "location": "สายลมเข้าValve107HS046", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-01-14", "wr_no": "WR7250260200112", "gas_medium": "Air", "description": "สายลมเข้าValve107HS046", "location_map": null, "location_3d": null, "damage_cost": 14673.22, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 1, "_sheet": "FIBER LINE", "kwh_loss": 5869.288, "steam_loss": 0.0, "co2_ton": 1.537753456, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 27, "plant": "PL-2", "location": " สายลมเข้าValve105LIC446", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-02-05", "wr_no": "WR7250260200799", "gas_medium": "Air", "description": " สายลมเข้าValve105LIC446", "location_map": null, "location_3d": null, "damage_cost": 21719.35, "status": "Completed", "repair_month": "2026-03-13", "close_date": null, "inspection_month": 2, "_sheet": "FIBER LINE", "kwh_loss": 8687.74, "steam_loss": 0.0, "co2_ton": 2.27618788, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 28, "plant": "PL-1", "location": "สายลมเข้า Valve LP steam mixer 7M33", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-12", "wr_no": "WR7250260300591", "gas_medium": "Air", "description": "พบจุดรั่ว สายลมเข้า Valve LP steam mixer 7M33", "location_map": null, "location_3d": null, "damage_cost": 20768.42, "status": "Completed", "repair_month": "2026-03-25", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 8307.367999999999, "steam_loss": 0.0, "co2_ton": 2.176530416, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 29, "plant": "PL-1", "location": "Regulator Valve 205FV225 ", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-20", "wr_no": "WR7250260300906", "gas_medium": "Air", "description": "พบจุดรั่ว Regulator Valve 205FV225 ", "location_map": "https://maps.app.goo.gl/KqhdRdKdu2JvDQQa9?g_st=il", "location_3d": "https://my.matterport.com/show/?m=t1RGciW4mcR&ss=275&sr=3.08,-.83", "damage_cost": 29566.26, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 11826.503999999999, "steam_loss": 0.0, "co2_ton": 3.0985440479999995, "repair_days": null, "repair_ym": null}, {"seq": 30, "plant": "PL-2", "location": "Regulator Valve 104FS804", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-20", "wr_no": "WR7250260300923", "gas_medium": "Air", "description": "พบจุดรั่วRegulator Valve 104FS804", "location_map": "https://maps.app.goo.gl/BtvLazdpcEgUUWwH9?g_st=il", "location_3d": null, "damage_cost": 13398.95, "status": "Completed", "repair_month": "2026-05-07", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 5359.58, "steam_loss": 0.0, "co2_ton": 1.4042099600000002, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 31, "plant": "PL-2", "location": "Solenoid ตู้ข้าง MT 106M561", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-20", "wr_no": "WR7250260300924", "gas_medium": "Air", "description": "พบจุดรั่วSolenoid ตู้ข้าง MT 106M561", "location_map": "https://maps.app.goo.gl/5Y8inbWhjFmMkTNk9?g_st=il", "location_3d": null, "damage_cost": 22224.42, "status": "Completed", "repair_month": "2026-05-07", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 8889.768, "steam_loss": 0.0, "co2_ton": 2.329119216, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 32, "plant": "PL-2", "location": " สายลมเข้า Valve107HIC106W", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-20", "wr_no": "WR7250260300925", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve107HIC106W", "location_map": null, "location_3d": null, "damage_cost": 21445.13, "status": "Completed", "repair_month": "2026-03-26", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 8578.052, "steam_loss": 0.0, "co2_ton": 2.247449624, "repair_days": null, "repair_ym": "2026-03"}, {"seq": 33, "plant": "PL-1", "location": "สายลมเข้ากล่อง 006KS104X", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-03-20", "wr_no": "WR7250260300926", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้ากล่อง 006KS104X", "location_map": "https://maps.app.goo.gl/sY3xueUW7rSDKiYs8?g_st=il", "location_3d": "https://my.matterport.com/show/?m=t1RGciW4mcR&ss=154&sr=.02,.23", "damage_cost": 24239.98, "status": "Completed", "repair_month": "2026-05-07", "close_date": null, "inspection_month": 3, "_sheet": "FIBER LINE", "kwh_loss": 9695.992, "steam_loss": 0.0, "co2_ton": 2.540349904, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 34, "plant": "PL-1", "location": "สายลมเข้า Valve 008LV865", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-04-27", "wr_no": "WR7250260401265", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve 008LV865", "location_map": "https://maps.app.goo.gl/y6abyq3GDeK4ZU5YA?g_st=il", "location_3d": "https://my.matterport.com/show/?m=t1RGciW4mcR&ss=27&sr=-.17,.19", "damage_cost": 50547.79, "status": "Completed", "repair_month": "2026-06-17", "close_date": null, "inspection_month": 4, "_sheet": "FIBER LINE", "kwh_loss": 20219.116, "steam_loss": 0.0, "co2_ton": 5.297408392000001, "repair_days": null, "repair_ym": "2026-06"}, {"seq": 35, "plant": "PL-2", "location": "สายลมเข้าValve305V041", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-04-27", "wr_no": "WR7250260401266", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าValve305V041", "location_map": "https://maps.app.goo.gl/LSXwRom7xY1ZdR5W9?g_st=il", "location_3d": null, "damage_cost": 22468.8, "status": "Completed", "repair_month": "2026-06-17", "close_date": null, "inspection_month": 4, "_sheet": "FIBER LINE", "kwh_loss": 8987.52, "steam_loss": 0.0, "co2_ton": 2.35473024, "repair_days": null, "repair_ym": "2026-06"}, {"seq": 36, "plant": "PL-1", "location": "สายลมบริเวณ Valve007HV7105", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-05-13", "wr_no": null, "gas_medium": "Air", "description": "สายลมบริเวณ Valve007HV7105", "location_map": "https://maps.app.goo.gl/5dWdzpNbqQreoCJh6?g_st=il", "location_3d": "https://my.matterport.com/show/?m=t1RGciW4mcR&ss=87&sr=-2.67,1.47", "damage_cost": 37273.97, "status": "Completed", "repair_month": "2026-05-13", "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 14909.588, "steam_loss": 0.0, "co2_ton": 3.906312056, "repair_days": null, "repair_ym": "2026-05"}, {"seq": 37, "plant": "PL-1", "location": "สายลม Valve 207LV295", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-05-27", "wr_no": "WR7250260501460", "gas_medium": "Air", "description": "พบจุดรั่วสายลม Valve 207LV295", "location_map": "https://maps.google.com?q=16.7069491,102.7473606&entry=gps&shh=CAE&lucs=,94297699,94231188,94280568,47071704,94218641,94282134,100799872,94286869&g_st=il", "location_3d": null, "damage_cost": 37017.95, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 14807.179999999998, "steam_loss": 0.0, "co2_ton": 3.8794811599999997, "repair_days": null, "repair_ym": null}, {"seq": 38, "plant": "PL-1", "location": "สายลมเข้าตู้บริเวณ MT007M561", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-05-27", "wr_no": "WR7250260501461", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าตู้บริเวณ MT007M561", "location_map": "https://maps.app.goo.gl/sY3xueUW7rSDKiYs8?g_st=il", "location_3d": null, "damage_cost": 44174.85, "status": "Completed", "repair_month": "2026-08-19", "close_date": null, "inspection_month": 5, "_sheet": "FIBER LINE", "kwh_loss": 17669.94, "steam_loss": 0.0, "co2_ton": 4.62952428, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 39, "plant": "PL-2", "location": "สายลมValve 105LIC446", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-06-22", "wr_no": "WR7250260601460", "gas_medium": "Air", "description": "พบจุดรั่วสายลมValve 105LIC446", "location_map": "https://maps.app.goo.gl/W4tpWWSj7Dhj8U2C6?g_st=il", "location_3d": null, "damage_cost": 27414.53, "status": "Completed", "repair_month": "2026-08-19", "close_date": null, "inspection_month": 6, "_sheet": "FIBER LINE", "kwh_loss": 10965.812, "steam_loss": 0.0, "co2_ton": 2.873042744, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 40, "plant": "PL-1", "location": "สายลมValve 205V015", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-06-22", "wr_no": "WR7250260601461", "gas_medium": "Air", "description": "พบจุดรั่วสายลมValve 205V015", "location_map": "https://maps.app.goo.gl/ZW31ujiSd6A6jD9o8?g_st=il", "location_3d": null, "damage_cost": 37465.37, "status": "Completed", "repair_month": "2026-08-19", "close_date": null, "inspection_month": 6, "_sheet": "FIBER LINE", "kwh_loss": 14986.148000000001, "steam_loss": 0.0, "co2_ton": 3.9263707760000006, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 41, "plant": "PL-2", "location": "ท่อลมบริเวณทางข้ามPL-2 ไป PL-1 ชั้น2", "section": "MMPU", "department": "PUMN", "inspection_date": "2026-07-13", "wr_no": "WR7250260701184", "gas_medium": "Air", "description": "พบจุดรั่วท่อลมบริเวณทางข้ามPL-2 ไป PL-1 ชั้น2", "location_map": "https://maps.app.goo.gl/sAsfnEt2Lf9J3F2J8?g_st=il", "location_3d": null, "damage_cost": 38568.02, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 15427.207999999999, "steam_loss": 0.0, "co2_ton": 4.041928496, "repair_days": null, "repair_ym": null}, {"seq": 42, "plant": "SH-1", "location": "ท่อลม 009SPL200", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-07-16", "wr_no": null, "gas_medium": "Air", "description": "พบจุดรั่วท่อลม 009SPL200", "location_map": "https://maps.app.goo.gl/Ukyq5i7KnZ85AMia8?g_st=il", "location_3d": null, "damage_cost": 24872.35, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 9948.939999999999, "steam_loss": 0.0, "co2_ton": 2.60662228, "repair_days": null, "repair_ym": null}, {"seq": 43, "plant": "SH-1", "location": "Valve 009NIC921", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-07-16", "wr_no": null, "gas_medium": "Air", "description": "พบจุดรั่วValve 009NIC921", "location_map": "https://maps.app.goo.gl/59z9er7tW9vv5ogg9?g_st=il", "location_3d": null, "damage_cost": 14425.48, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 5770.192, "steam_loss": 0.0, "co2_ton": 1.511790304, "repair_days": null, "repair_ym": null}, {"seq": 44, "plant": "PL-1", "location": "สายลมValve 007FV902", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-07-16", "wr_no": "WR7250260701187", "gas_medium": "Air", "description": "พบจุดรั่วสายลมValve 007FV902", "location_map": "https://maps.app.goo.gl/sZFiwtF5xCP7EAmo7?g_st=il", "location_3d": null, "damage_cost": 36366.25, "status": "Completed", "repair_month": "2026-08-26", "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 14546.5, "steam_loss": 0.0, "co2_ton": 3.811183, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 45, "plant": "PL-1", "location": "สายลมเข้า Valve ข้าง MT 7M23", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-07-16", "wr_no": "WR7250260701190", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve ข้าง MT 7M23", "location_map": "https://maps.app.goo.gl/ebACFRQUjNjBhYvK6?g_st=il", "location_3d": null, "damage_cost": 31899.33, "status": "Completed", "repair_month": "2026-08-26", "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 12759.732, "steam_loss": 0.0, "co2_ton": 3.343049784, "repair_days": null, "repair_ym": "2026-08"}, {"seq": 46, "plant": "PL-2", "location": "สายลมเข้า Valve107HIC121", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-07-16", "wr_no": "WR7250260701191", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้า Valve107HIC121", "location_map": "https://maps.app.goo.gl/jMcFhYxUph5kVyXQ6?g_st=il", "location_3d": null, "damage_cost": 21599.04, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 7, "_sheet": "FIBER LINE", "kwh_loss": 8639.616, "steam_loss": 0.0, "co2_ton": 2.263579392, "repair_days": null, "repair_ym": null}, {"seq": 47, "plant": "PL-2", "location": "สายลม Valve บนMT 108M562", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-08-28", "wr_no": "WR7250260802086", "gas_medium": "Air", "description": "พบจุดรั่วสายลม Valve บนMT 108M562", "location_map": "https://maps.app.goo.gl/GL59uP7qTzgEXLSVA?g_st=il", "location_3d": null, "damage_cost": 37465.37, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 14986.148000000001, "steam_loss": 0.0, "co2_ton": 3.9263707760000006, "repair_days": null, "repair_ym": null}, {"seq": 48, "plant": "PL-1", "location": "สายลมเข้าตู้บริเวณ MT007M561", "section": "EMPU", "department": "PUMN", "inspection_date": "2026-08-28", "wr_no": "WR7250260802087", "gas_medium": "Air", "description": "พบจุดรั่วสายลมเข้าตู้บริเวณ MT007M561", "location_map": "https://maps.app.goo.gl/sY3xueUW7rSDKiYs8?g_st=il", "location_3d": null, "damage_cost": 38666.26, "status": "Open", "repair_month": null, "close_date": null, "inspection_month": 8, "_sheet": "FIBER LINE", "kwh_loss": 15466.504, "steam_loss": 0.0, "co2_ton": 4.052224048, "repair_days": null, "repair_ym": null}];
+const WR_IMAGES = {"WR7250250500828": ["Location%20Picture/WR7250250500828/WR7250250500828.jpg"], "WR7250250500834": ["Location%20Picture/WR7250250500834/WR7250250500834.jpg"], "WR7250250500836": ["Location%20Picture/WR7250250500836/WR7250250500836.jpg"], "WR7250250800814": ["Location%20Picture/WR7250250800814/WR7250250800814.jpg"], "WR7250250801616": ["Location%20Picture/WR7250250801616/WR7250250801616.jpg"], "WR7250260200101": ["Location%20Picture/WR7250260200101/WR7250260200101.jpg"], "WR7250260300506": ["Location%20Picture/WR7250260300506/WR7250260300506.jpg"], "WR7250260300728": ["Location%20Picture/WR7250260300728/WR7250260300728.jpg"], "WR7250260300736": ["Location%20Picture/WR7250260300736/WR7250260300736.jpg"], "WR7250260300737": ["Location%20Picture/WR7250260300737/WR7250260300737.jpg"], "WR7250260300738": ["Location%20Picture/WR7250260300738/WR7250260300738.jpg"], "WR7250260300741": ["Location%20Picture/WR7250260300741/WR7250260300741.jpg"], "WR7250260300742": ["Location%20Picture/WR7250260300742/WR7250260300742.jpg"], "WR7250260300745": ["Location%20Picture/WR7250260300745/WR7250260300745.jpg"], "WR7250260300747": ["Location%20Picture/WR7250260300747/WR7250260300747.jpg"], "WR7250260300748": ["Location%20Picture/WR7250260300748/WR7250260300748.jpg"], "WR7250260300750": ["Location%20Picture/WR7250260300750/WR7250260300750.jpg"], "WR7250260300751": ["Location%20Picture/WR7250260300751/WR7250260300751.jpg"], "WR7250260300752": ["Location%20Picture/WR7250260300752/WR7250260300752.jpg"], "WR7250260300753": ["Location%20Picture/WR7250260300753/WR7250260300753.jpg"], "WR7250260300756": ["Location%20Picture/WR7250260300756/WR7250260300756.jpg"], "WR7250260300757": ["Location%20Picture/WR7250260300757/WR7250260300757.jpg"], "WR7250260300758": ["Location%20Picture/WR7250260300758/WR7250260300758.jpg"], "WR7250260300759": ["Location%20Picture/WR7250260300759/WR7250260300759.jpg"], "WR7250260300906": ["Location%20Picture/WR7250260300906/WR7250260300906.jpg"], "WR7250260300923": ["Location%20Picture/WR7250260300923/WR7250260300923.jpg"], "WR7250260300924": ["Location%20Picture/WR7250260300924/WR7250260300924.jpg"], "WR7250260300926": ["Location%20Picture/WR7250260300926/WR7250260300926.jpg"]};
+
+const PALETTE = ['#00b4ff','#00e676','#ff9100','#c77dff','#00e5ff','#ff3d57','#ffe57f','#69f0ae'];
+const SEC_COLOR = {};
+(AGG.sections||[]).forEach((s,i) => SEC_COLOR[s] = PALETTE[i % PALETTE.length]);
+
+function fmtNum(v, dec=0) {
+  if (v == null || isNaN(v)) return '-';
+  return Number(v).toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function fmtK(v) {
+  return (v/1000).toFixed(1)+'K';
+}
+
+// KPIs
+document.getElementById('kpi-total').textContent = fmtNum(AGG.total_cases);
+document.getElementById('kpi-completed').textContent = fmtNum(AGG.completed);
+document.getElementById('kpi-open').textContent = fmtNum(AGG.open);
+document.getElementById('kpi-total-cost').textContent = '฿'+fmtNum(AGG.total_cost);
+document.getElementById('kpi-saving').textContent = '฿'+fmtNum(AGG.saving_cost);
+document.getElementById('kpi-remaining').textContent = '฿'+fmtNum(AGG.remaining_cost);
+document.getElementById('e-kwh-total').textContent = fmtNum(AGG.kwh.total);
+document.getElementById('e-kwh-saving').textContent = fmtNum(AGG.kwh.saving);
+document.getElementById('e-kwh-remain').textContent = fmtNum(AGG.kwh.remaining);
+document.getElementById('e-steam-total').textContent = fmtNum(AGG.steam.total, 1);
+document.getElementById('e-steam-saving').textContent = fmtNum(AGG.steam.saving, 1);
+document.getElementById('e-steam-remain').textContent = fmtNum(AGG.steam.remaining, 1);
+document.getElementById('e-co2-total').textContent = fmtNum(AGG.co2.total, 2);
+document.getElementById('e-co2-saving').textContent = fmtNum(AGG.co2.saving, 2);
+document.getElementById('e-co2-remain').textContent = fmtNum(AGG.co2.remaining, 2);
+document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleString();
+
+// Chart defaults
+Chart.defaults.color = '#6b7a99';
+Chart.defaults.borderColor = '#1e2d45';
+Chart.defaults.font.family = 'Segoe UI';
+Chart.defaults.font.size = 11;
+
+// Chart 1: Status by Section (stacked bar)
+new Chart(document.getElementById('chartSecStatus'), {
+  type: 'bar',
+  data: {
+    labels: AGG.sections,
+    datasets: [
+      { label: 'Completed', data: AGG.sections.map(s => AGG.sec_status_comp[s]||0), backgroundColor: '#00e676', stack: 'a' },
+      { label: 'Open', data: AGG.sections.map(s => AGG.sec_status_open[s]||0), backgroundColor: '#ff3d57', stack: 'a' }
+    ]
+  },
+  options: { responsive:true, plugins: {legend:{position:'top'}}, scales: { x:{stacked:true}, y:{stacked:true, ticks:{stepSize:1}} } }
+});
+
+// Chart 2: Horizontal Damage Cost by Section (sorted desc)
+const sortedSecs = Object.entries(AGG.sec_damage).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chartSecDamage'), {
+  type: 'bar',
+  data: {
+    labels: sortedSecs.map(x=>x[0]),
+    datasets: [{ label:'Damage Cost (THB)', data: sortedSecs.map(x=>x[1]), backgroundColor: sortedSecs.map((_,i)=>PALETTE[i%PALETTE.length]) }]
+  },
+  options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback: v=>fmtK(v)}}} }
+});
+
+// Chart 3: Repair Progress by Plant
+new Chart(document.getElementById('chartPlantStatus'), {
+  type: 'bar',
+  data: {
+    labels: AGG.plants,
+    datasets: [
+      { label: 'Completed', data: AGG.plants.map(p => AGG.plant_status_comp[p]||0), backgroundColor:'#00e676', stack:'a' },
+      { label: 'Open', data: AGG.plants.map(p => AGG.plant_status_open[p]||0), backgroundColor:'#ff3d57', stack:'a' }
+    ]
+  },
+  options: { responsive:true, plugins:{legend:{position:'top'}}, scales:{x:{stacked:true},y:{stacked:true,ticks:{stepSize:1}}} }
+});
+
+// Chart 4: Doughnut
+new Chart(document.getElementById('chartDoughnut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Saving Cost', 'Remaining Cost'],
+    datasets: [{ data: [AGG.saving_cost, AGG.remaining_cost], backgroundColor: ['#00e5ff','#ff3d57'], borderWidth: 2, borderColor: '#111827' }]
+  },
+  options: { responsive:true, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label: ctx => '฿'+fmtNum(ctx.raw)}}} }
+});
+
+// Chart 5: Monthly Trend
+new Chart(document.getElementById('chartMonthly'), {
+  type: 'line',
+  data: {
+    labels: AGG.saving_months,
+    datasets: [{
+      label: 'Monthly Saving (THB)',
+      data: AGG.saving_months.map(m => {
+        const vals = Object.values(AGG.saving_by_month_section[m]||{});
+        return vals.reduce((a,b)=>a+b,0);
+      }),
+      borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.1)', fill:true, tension:0.4, pointRadius:5
+    }]
+  },
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>fmtK(v)}}} }
+});
+
+// Chart 6: Energy Loss by Section (dual axis — kWh + steam)
+new Chart(document.getElementById('chartEnergySection'), {
+  type: 'bar',
+  data: {
+    labels: AGG.sections,
+    datasets: [
+      { label:'kWh Loss', data: AGG.sections.map(s=>AGG.sec_energy.kwh[s]||0), backgroundColor:'#ff9100', yAxisID:'y' },
+      { label:'Steam Loss (ton)', data: AGG.sections.map(s=>AGG.sec_energy.steam[s]||0), backgroundColor:'#c77dff', yAxisID:'y1' }
+    ]
+  },
+  options: {
+    responsive:true, plugins:{legend:{position:'top'}},
+    scales:{
+      y:{ type:'linear', position:'left', ticks:{callback:v=>fmtK(v)}, title:{display:true,text:'kWh'} },
+      y1:{ type:'linear', position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'ton steam'} }
+    }
+  }
+});
+
+// Chart 7: GHG by Section
+new Chart(document.getElementById('chartGHG'), {
+  type: 'bar',
+  data: {
+    labels: AGG.sections,
+    datasets: [{
+      label:'CO₂ (ton)',
+      data: AGG.sections.map(s=>AGG.sec_energy.co2[s]||0),
+      backgroundColor: AGG.sections.map((_,i)=> PALETTE[i%PALETTE.length])
+    }]
+  },
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{title:{display:true,text:'ton CO₂'}}} }
+});
+
+// Chart 8: Saving by Section (horizontal, teal fading)
+const savingSecs = Object.entries(AGG.section_saving).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chartSecSaving'), {
+  type: 'bar',
+  data: {
+    labels: savingSecs.map(x=>x[0]),
+    datasets: [{ label:'Saving (THB)', data: savingSecs.map(x=>x[1]),
+      backgroundColor: savingSecs.map((_,i) => `rgba(0,229,255,${1-i*0.1})`), borderColor: '#00e5ff', borderWidth:1 }]
+  },
+  options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>'฿'+fmtK(v)}}} }
+});
+
+// Chart 9: Remaining by Section (horizontal, red fading)
+const remSecs = Object.entries(AGG.section_remaining).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chartSecRemaining'), {
+  type: 'bar',
+  data: {
+    labels: remSecs.map(x=>x[0]),
+    datasets: [{ label:'Remaining (THB)', data: remSecs.map(x=>x[1]),
+      backgroundColor: remSecs.map((_,i)=>`rgba(255,61,87,${1-i*0.15})`), borderColor:'#ff3d57', borderWidth:1 }]
+  },
+  options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>'฿'+fmtK(v)}}} }
+});
+
+// Chart 10: Cost Saving by Month by Section (stacked)
+new Chart(document.getElementById('chartMonthlySec'), {
+  type: 'bar',
+  data: {
+    labels: AGG.saving_months,
+    datasets: AGG.sections.map((s,i) => ({
+      label: s,
+      data: AGG.saving_months.map(m => AGG.saving_by_month_section[m] ? (AGG.saving_by_month_section[m][s]||0) : 0),
+      backgroundColor: PALETTE[i%PALETTE.length],
+      stack: 'a'
+    }))
+  },
+  options: {
+    responsive:true, plugins:{
+      legend:{position:'top'},
+      tooltip:{
+        callbacks:{
+          footer: items => 'Total: ฿'+fmtNum(items.reduce((a,b)=>a+b.raw,0))
+        }
+      }
+    },
+    scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'฿'+fmtK(v)}}}
+  }
+});
+
+// Chart 11: Top 10
+const top10 = AGG.top10;
+new Chart(document.getElementById('chartTop10'), {
+  type:'bar',
+  data:{
+    labels: top10.map(r=>r.wr_no||r.location||''),
+    datasets:[{ label:'Damage (THB)', data:top10.map(r=>r.damage_cost),
+      backgroundColor: top10.map(r=>r.status==='Completed'?'#00e5ff':'#ff3d57') }]
+  },
+  options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>'฿'+fmtK(v)}}} }
+});
+
+// Heatmap
+(function buildHeatmap(){
+  const hm = AGG.heatmap;
+  const sections = [...new Set(hm.map(r=>r.section))].sort();
+  const plants = [...new Set(hm.map(r=>r.plant))].sort();
+  const lookup = {};
+  hm.forEach(r => { lookup[r.section+'|'+r.plant] = r.damage_cost; });
+  const maxVal = Math.max(...hm.map(r=>r.damage_cost));
+  let html = '<table class="heatmap-table"><thead><tr><th>Section\Plant</th>';
+  plants.forEach(p => html += `<th>${p}</th>`);
+  html += '</tr></thead><tbody>';
+  sections.forEach(s => {
+    html += `<tr><td style="font-weight:600;color:${SEC_COLOR[s]}">${s}</td>`;
+    plants.forEach(p => {
+      const v = lookup[s+'|'+p];
+      if (v) {
+        const alpha = Math.round((v/maxVal)*0.8*255).toString(16).padStart(2,'0');
+        html += `<td style="background:#00b4ff${alpha};color:#fff;font-size:0.7rem;">${fmtK(v)}</td>`;
+      } else {
+        html += '<td style="color:var(--border)">-</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmapContainer').innerHTML = html;
+})();
+
+// WR Modal
+function openWrModal(wrNo) {
+  const imgs = WR_IMAGES[wrNo];
+  if (!imgs || !imgs.length) return;
+  let html = `<h6 style="color:var(--blue);margin-bottom:12px;">📷 ${wrNo}</h6>`;
+  imgs.forEach(src => {
+    const fname = src.split('/').pop().replace(/%20/g,' ').replace(/%2B/g,'+');
+    html += `<div style="margin-bottom:16px;"><img src="${src}" alt="${fname}" onerror="this.style.display='none'">
+      <div class="wr-modal-label">${decodeURIComponent(fname)}</div></div>`;
+  });
+  document.getElementById('wrModalContent').innerHTML = html;
+  document.getElementById('wrModal').classList.add('active');
+}
+document.getElementById('wrModalClose').onclick = () => document.getElementById('wrModal').classList.remove('active');
+document.getElementById('wrModal').onclick = (e) => { if (e.target===document.getElementById('wrModal')) document.getElementById('wrModal').classList.remove('active'); };
+document.addEventListener('keydown', e => { if (e.key==='Escape') document.getElementById('wrModal').classList.remove('active'); });
+
+function wrLink(wrNo) {
+  if (!wrNo) return '-';
+  if (WR_IMAGES[wrNo]) {
+    return `<a href="#" class="wr-link" onclick="openWrModal('${wrNo}');return false;">📷 ${wrNo}</a>`;
+  }
+  return `<span style="color:var(--muted)">${wrNo}</span>`;
+}
+function mapLink(url) {
+  if (!url || url==='null') return '-';
+  const safe = url.replace(/"/g,'&quot;');
+  return `<a href="${safe}" class="wr-link" target="_blank" rel="noopener noreferrer">📍 Map</a>`;
+}
+function threeDLink(url) {
+  if (!url || url==='null') return '-';
+  const safe = url.replace(/"/g,'&quot;');
+  return `<a href="${safe}" class="wr-link-3d" target="_blank" rel="noopener noreferrer">🧊 3D</a>`;
+}
+function statusBadge(s) {
+  if (s==='Completed') return `<span class="badge-completed">Completed</span>`;
+  if (s==='In Progress') return `<span class="badge-progress">In Progress</span>`;
+  return `<span class="badge-open">Open</span>`;
+}
+
+function buildRowCells(r) {
+  return [
+    wrLink(r.wr_no),
+    r.plant||'-',
+    r.section ? `<span style="color:${SEC_COLOR[r.section]}">${r.section}</span>` : '-',
+    r.location||'-',
+    mapLink(r.location_map),
+    threeDLink(r.location_3d),
+    r.gas_medium||'-',
+    r.description||'-',
+    r.damage_cost != null ? fmtNum(r.damage_cost) : '-',
+    statusBadge(r.status),
+    r.inspection_date||'-',
+    r.close_date||'-',
+    r.repair_days != null ? r.repair_days+'d' : '-'
+  ];
+}
+
+// Init DataTable
+const dataTable = $('#leakTable').DataTable({
+  data: RECORDS.map(r => buildRowCells(r)),
+  columns: [
+    {title:'WR No.'}, {title:'Plant'}, {title:'Section'}, {title:'Location'},
+    {title:'Map'}, {title:'3D'}, {title:'Gas'}, {title:'Description'},
+    {title:'Damage (THB)', type:'num-fmt'}, {title:'Status'}, {title:'Inspection'},
+    {title:'Close Date'}, {title:'Repair Days'}
+  ],
+  columnDefs: [
+    { targets: [4,5], orderable: false, searchable: false },
+    { targets: [8], orderDataType: 'dom-text', type: 'num-fmt' }
+  ],
+  order: [[8, 'desc']],
+  pageLength: 15,
+  lengthMenu: [10,15,25,50,100],
+  dom: '<"top"lf>rt<"bottom"ip>',
+  language: { search: '🔍 Search:', emptyTable: 'No records found' }
+});
+
+function updateCount() {
+  document.getElementById('recordCount').textContent = dataTable.rows({search:'applied'}).count()+' records';
+}
+dataTable.on('draw', updateCount);
+updateCount();
+
+// Populate filter dropdowns
+const plants = [...new Set(RECORDS.map(r=>r.plant).filter(Boolean))].sort();
+const sections = [...new Set(RECORDS.map(r=>r.section).filter(Boolean))].sort();
+const gases = [...new Set(RECORDS.map(r=>r.gas_medium).filter(Boolean))].sort();
+plants.forEach(p => { const o=document.createElement('option'); o.value=p; o.textContent=p; document.getElementById('filterPlant').appendChild(o); });
+sections.forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; document.getElementById('filterSection').appendChild(o); });
+gases.forEach(g => { const o=document.createElement('option'); o.value=g; o.textContent=g; document.getElementById('filterGas').appendChild(o); });
+
+function applyFilters() {
+  const status = document.getElementById('filterStatus').value;
+  const plant = document.getElementById('filterPlant').value;
+  const section = document.getElementById('filterSection').value;
+  const gas = document.getElementById('filterGas').value;
+  
+  const filtered = RECORDS.filter(r => {
+    if (status && r.status !== status) return false;
+    if (plant && r.plant !== plant) return false;
+    if (section && r.section !== section) return false;
+    if (gas && r.gas_medium !== gas) return false;
+    return true;
+  });
+  
+  dataTable.clear();
+  filtered.forEach(r => dataTable.row.add(buildRowCells(r)));
+  dataTable.draw();
+}
+
+['filterStatus','filterPlant','filterSection','filterGas'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+
+function resetFilters() {
+  ['filterStatus','filterPlant','filterSection','filterGas'].forEach(id => document.getElementById(id).value='');
+  dataTable.clear();
+  RECORDS.forEach(r => dataTable.row.add(buildRowCells(r)));
+  dataTable.draw();
+}
+
+// Export Excel
+document.getElementById('exportBtn').addEventListener('click', function() {
+  const status = document.getElementById('filterStatus').value;
+  const plant = document.getElementById('filterPlant').value;
+  const section = document.getElementById('filterSection').value;
+  const gas = document.getElementById('filterGas').value;
+  
+  const filtered = RECORDS.filter(r => {
+    if (status && r.status !== status) return false;
+    if (plant && r.plant !== plant) return false;
+    if (section && r.section !== section) return false;
+    if (gas && r.gas_medium !== gas) return false;
+    return true;
+  });
+
+  const leakRows = filtered.map(r => ({
+    'WR No.': r.wr_no||'',
+    'Plant': r.plant||'',
+    'Section': r.section||'',
+    'Location': r.location||'',
+    'Department': r.department||'',
+    'Gas Medium': r.gas_medium||'',
+    'Description': r.description||'',
+    'Location Map': r.location_map||'',
+    '3D Location': r.location_3d||'',
+    'Damage Cost (THB)': r.damage_cost||0,
+    'Status': r.status||'',
+    'Inspection Date': r.inspection_date||'',
+    'Close Date': r.close_date||'',
+    'Repair Days': r.repair_days||''
+  }));
+
+  const kpiRows = [
+    {'Metric':'Total Cases','Value':AGG.total_cases},
+    {'Metric':'Completed','Value':AGG.completed},
+    {'Metric':'Open','Value':AGG.open},
+    {'Metric':'Total Damage Cost (THB)','Value':AGG.total_cost},
+    {'Metric':'Saving Cost (THB)','Value':AGG.saving_cost},
+    {'Metric':'Remaining Cost (THB)','Value':AGG.remaining_cost},
+    {'Metric':'kWh Loss Total','Value':AGG.kwh.total},
+    {'Metric':'kWh Loss Saving','Value':AGG.kwh.saving},
+    {'Metric':'kWh Loss Remaining','Value':AGG.kwh.remaining},
+    {'Metric':'Steam Loss Total (ton)','Value':AGG.steam.total},
+    {'Metric':'Steam Loss Saving (ton)','Value':AGG.steam.saving},
+    {'Metric':'Steam Loss Remaining (ton)','Value':AGG.steam.remaining},
+    {'Metric':'CO₂ Total (ton)','Value':AGG.co2.total},
+    {'Metric':'CO₂ Saving (ton)','Value':AGG.co2.saving},
+    {'Metric':'CO₂ Remaining (ton)','Value':AGG.co2.remaining},
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leakRows), 'Leak Records');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(kpiRows), 'KPI Summary');
+  
+  const filterTag = [status,plant,section,gas].filter(Boolean).join('_') || 'All';
+  const dateTag = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  XLSX.writeFile(wb, `PPPC_LeakReport_${filterTag}_${dateTag}.xlsx`);
+});
+</script>
+</body>
+</html>
